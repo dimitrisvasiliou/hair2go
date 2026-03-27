@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HAIR2GO Appointments</title>
+  <style>
+    body { font-family: sans-serif; padding:20px; }
+    .appointments { margin-top:20px; }
+    .slot { padding:8px; margin:4px 0; border-radius:6px; }
+    .Sonia { background: #ffccee; border-left:4px solid #ff66cc; }
+    .Pavlos { background: #cceeff; border-left:4px solid #3399ff; }
+    form { margin-top:20px; border-top:1px solid #ccc; padding-top:10px; }
+    label { display:block; margin:8px 0; }
+    input, select { padding:6px; }
+    .login-info {
+      position: fixed; top:10px; right:10px;
+      background:#eee; padding:8px; border-radius:4px;
+      font-size:0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-info">
+    Logged in as <strong id="loginUser">Sonia/Pavlos</strong>
+    <br />
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <h1>HAIR2GO — Daily Appointments</h1>
+  <input type="date" id="dayInput" /> <button onclick="loadDay()">Load Day</button>
+
+  <div id="appointmentsList" class="appointments"></div>
+
+  <form id="addForm">
+    <h2>Add Appointment</h2>
+    <label>Date:</label>
+    <input type="text" id="dayAdd" readonly />
+    <label>Client Name:</label>
+    <input type="text" id="clientName" required />
+    <label>From (time):</label>
+    <input type="time" id="timeFrom" required />
+    <label>To (time):</label>
+    <input type="time" id="timeTo" required />
+    <label>Barber:</label>
+    <select id="barber" disabled>
+      <option value="Sonia">Sonia</option>
+      <option value="Pavlos">Pavlos</option>
+    </select>
+    <button type="submit">Add Appointment</button>
+  </form>
+
+  <script>
+    const api = "/api/appointments";
+    const user = { name: "Sonia" }; // this will be set by backend if you want, but simplified here
+
+    document.getElementById("loginUser").textContent = user.name;
+
+    function logout() {
+      fetch("/logout", { method: "GET" })
+        .then(() => window.location.href = "/login");
+    }
+
+    function loadDay() {
+      const date = document.getElementById("dayInput").value;
+      if (!date) { alert("Please pick a date"); return; }
+
+      fetch(`${api}?date=${date}`)
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById("dayAdd").value = date;
+          const list = document.getElementById("appointmentsList");
+          list.innerHTML = "";
+
+          if (!data.appointments || data.appointments.length === 0) {
+            list.innerHTML = "<p>No appointments today.</p>";
+            return;
+          }
+
+          data.appointments.forEach(a => {
+            const el = document.createElement("div");
+            el.className = `slot ${a.barber}`;
+            el.innerHTML = `
+              <strong>${a.client_name}</strong> – ${a.time_from} to ${a.time_to}
+              <br />
+              <button onclick="editTime('${a.id}')">Edit Time</button>
+            `;
+            list.appendChild(el);
+          });
+        })
+        .catch(e => console.error(e));
+    }
+
+    function editTime(id) {
+      const from = prompt("New start time (HH:MM):");
+      const to = prompt("New end time (HH:MM):");
+      if (!from || !to) return;
+
+      fetch(`${api}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ time_from: from, time_to: to })
+      })
+        .then(r => r.json())
+        .then(() => loadDay())
+        .catch(e => console.error(e));
+    }
+
+    document.getElementById("addForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const date = document.getElementById("dayAdd").value;
+      const clientName = document.getElementById("clientName").value;
+      const timeFrom = document.getElementById("timeFrom").value;
+      const timeTo = document.getElementById("timeTo").value;
+
+      const barber = user.name; // hardcoded per logged‑in user
+
+      fetch(api, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date, client_name: clientName,
+          time_from: timeFrom, time_to: timeTo
+        })
+      })
+        .then(r => r.json())
+        .then(() => {
+          loadDay();
+          document.getElementById("addForm").reset();
+        })
+        .catch(e => console.error(e));
+    });
+  </script>
+</body>
+</html>
