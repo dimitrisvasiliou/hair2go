@@ -7,7 +7,7 @@ import os
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 app = Flask(__name__)
 app.secret_key = "hair2go_secret_key"  # change in production
